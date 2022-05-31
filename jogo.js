@@ -1,5 +1,32 @@
 var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
-            estadoAtual, record, img,
+            estadoAtual, record, img, pontosParaNovaFase = [5, 10, 15, 20],
+            faseAtual = 0,
+
+            labelNovaFase = {
+                texto: "",
+                opacidade: 0.0,
+
+                fadeIn: function(dt){
+                var fadeInId = setInterval(function() {
+                        if(labelNovaFase.opacidade < 1.0){
+                            labelNovaFase.opacidade += 0.01;
+                        }
+                        else {
+                            clearInterval(fadeInId);
+                        }
+                    }, 10 * dt);
+                },
+                fadeOut: function(dt){
+                var fadeOutId = setInterval(function() {
+                        if(labelNovaFase.opacidade > 0.0){
+                            labelNovaFase.opacidade -= 0.01;
+                        }
+                        else {
+                            resetInterval(fadeOutId);
+                        }
+                    }, 10 * dt);
+                }
+            }
 
             estados = {
                 jogar: 0,
@@ -16,7 +43,7 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
                 atualiza: function(){
                     this.x -= velocidade;
                     if(this.x <= -30){
-                        this.x = 0;
+                        this.x += 30;
                     }
                 },
                 desenha: function(){
@@ -68,6 +95,9 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
                     }
 
                     this.score = 0;
+                    velocidade = 6;
+                    faseAtual = 0;
+                    this.gravidade = 1.6;
                 },
                 desenha : function(){
                     //ctx.fillStyle = this.cor;
@@ -85,6 +115,7 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
             }
             obstaculos = {
                 _obs : [],
+                _scored: false,
                 cores : ["#ffbc1c", "#ff1c1c", "#ff85e1", "#52a7ff", "#78ff5d"],
                 tempoInsere : 0,
 
@@ -113,8 +144,14 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
                         obs.x && bloco.y + bloco.altura >= chao.y - obs.altura){
                             estadoAtual = estados.perdeu;
                         }
-                        else if(obs.x == 0){
+                        else if(obs.x <= 0 && !obs._scored){
                             bloco.score++;
+                            obs._scored = true;
+
+                            if(faseAtual < pontosParaNovaFase.length &&
+                                 bloco.score == pontosParaNovaFase[faseAtual]){
+                                passarDeFase();
+                            }
                         }
                        else if(obs.x <= - obs.largura){
                             this._obs.splice(i, 1);
@@ -148,6 +185,21 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
                     obstaculos.limpa();
                     bloco.reset();
                 }
+            };
+
+            function passarDeFase(){
+                velocidade++;
+                faseAtual++;
+
+                if(faseAtual == 4){
+                    bloco.gravidade *= 0.6;
+                }
+
+                labelNovaFase.texto = "Level " + faseAtual;
+                labelNovaFase.fadeIn(0.4);
+                setTimeout(function(){
+                    labelNovaFase.fadeOut(0.4);
+                }, 800);
             };
 
             function main(){
@@ -201,6 +253,10 @@ var canvas, ctx, LARGURA, ALTURA, maxPulos = 3, velocidade = 6,
                 ctx.fillStyle = "#fff";
                 ctx.font = "50px Arial";
                 ctx.fillText(bloco.score, 30, 68);
+
+                ctx.fillStyle = "rgba(0, 0, 0, "+labelNovaFase.opacidade+")";
+                ctx.fillText(labelNovaFase.texto, canvas.width / 2 - ctx.measureText(labelNovaFase.texto).width / 2,
+                canvas.height / 3);
 
                 if(estadoAtual == estados.jogando){
                     obstaculos.desenha();
